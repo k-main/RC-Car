@@ -4,14 +4,14 @@
 #include "periph.h"
 
 #define PCH_Q1 8
-#define NCH_Q2 11
-#define PCH_Q3 10
-#define NCH_Q4 9
+#define NCH_Q2 9 
+#define PCH_Q3 10 
+#define NCH_Q4 11
 
 //TODO: declare variables for cross-task communication
 
 /* You have 5 tasks to implement for this lab */
-#define NUM_TASKS 3
+#define NUM_TASKS 2
 
 
 //Task struct for concurrent synchSMs implmentations
@@ -28,14 +28,13 @@ typedef struct _task{
 
 // e.g. const unsined long TASK1_PERIOD = <PERIOD>
 const unsigned int GCD_PERIOD = 50;
-const unsigned int SW_PERIOD = 500;
 const unsigned int IN_PERIOD = 50;
 const unsigned int M_PERIOD = 50;
 typedef enum switch_state {high, low};
 typedef enum input_state {wait, read};
 typedef enum m_state {left, right, off};
 m_state motor_state;
-
+ 
 
 task tasks[NUM_TASKS];
 
@@ -92,21 +91,16 @@ int tick_in(int state) {
   return state;
 }
 
-void m_off(void){
-  digitalWrite(PCH_Q1, HIGH);
-  digitalWrite(PCH_Q3, HIGH);
-  digitalWrite(NCH_Q2, LOW);
-  digitalWrite(NCH_Q4, LOW);
+inline void m_off(void){
+  PORTB = 0b0101;
 }
 
-void m_right(void){
-  digitalWrite(PCH_Q1, LOW);
-  digitalWrite(NCH_Q4, HIGH);
+inline void m_right(void){
+  PORTB = 0b1100;
 }
 
-void m_left(void){
-  digitalWrite(PCH_Q3, LOW);
-  digitalWrite(NCH_Q2, HIGH);
+inline void m_left(void){
+  PORTB = 0b0011;
 }
 
 int tick_m(int state) {
@@ -125,19 +119,6 @@ int tick_m(int state) {
   return state;
 }
 
-int tick_sw(int state) {
-  switch(state){
-    case high:
-      digitalWrite(2, HIGH);
-      state = low;
-      break;
-    case low:
-      // state = high;
-      digitalWrite(2, LOW);
-      break;
-  }
-  return state;
-}
 
 int main(void) {
     //TODO: initialize all your inputs and ouputs
@@ -147,47 +128,12 @@ To initialize a pin as an output, you must set its DDR value as ‘1’ and then
 To initialize a pin as an input, you do the opposite: you must set its DDR value as ‘0’ and its PORT value as a ‘1’. 
 */
 
-  /*
-  #define PCH_Q1 8
-#define NCH_Q2 9
-#define PCH_Q3 10
-#define PCH_Q4 11
-  
-  */
     motor_state = off;
     unsigned char i = 0;
     serial_init(9600);
-    // DDRC = 0x34; PORTC = 0x33;
-    // DDRB = 0b111110; PORTB = 0b111101;
-    // DDRD = 0xFF; PORTD = 0x00;
-    // DDRD = 0b0010000000000; PORTD = 0b0000; 
-    pinMode(2,  OUTPUT);
-    pinMode(3, INPUT);
-    pinMode(4, INPUT);
-    pinMode(5, OUTPUT);
-    pinMode(6, OUTPUT);
+    DDRD = 0b0000;
+    DDRB = 0b1111;
 
-    pinMode(PCH_Q1, OUTPUT);
-    pinMode(NCH_Q2, OUTPUT);
-    pinMode(PCH_Q3, OUTPUT);
-    pinMode(NCH_Q4, OUTPUT);
-
-
-    
-
-    // ADC_init();   // initializes ADC
-    //TODO: Initialize tasks here
-    // tasks[i].period = display_period;
-    // tasks[i].state = display_cm;
-    // tasks[i].elapsedTime = tasks[i].period;
-    // tasks[i].TickFct = &tick_displayfct;
-    // i++;
-    
-    tasks[i].period = SW_PERIOD;
-    tasks[i].state = low;
-    tasks[i].elapsedTime = tasks[i].period;
-    tasks[i].TickFct = &tick_sw;
-    i++;
     tasks[i].period = M_PERIOD;
     tasks[i].state = low;
     tasks[i].elapsedTime = tasks[i].period;
@@ -201,7 +147,6 @@ To initialize a pin as an input, you do the opposite: you must set its DDR value
     TimerSet(GCD_PERIOD);
     TimerOn();
     while(1){
-
     }
 
     return 0;
