@@ -3,11 +3,6 @@
 #include "helper.h"
 #include "periph.h"
 
-#define PCH_Q1 8
-#define NCH_Q2 9 
-#define PCH_Q3 10 
-#define NCH_Q4 11
-
 //TODO: declare variables for cross-task communication
 
 /* You have 5 tasks to implement for this lab */
@@ -51,6 +46,51 @@ void TimerISR() {
 	}
 }
 
+
+int tick_in(int state);
+int tick_m(int state);
+
+
+int main(void) {
+    motor_state = off;
+    unsigned char i = 0;
+    serial_init(9600);
+    DDRD = 0b0000;
+    DDRC = 0b1111;
+    PORTC = 0b0101;
+
+    tasks[i].period = M_PERIOD;
+    tasks[i].state = low;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &tick_m;
+    i++;
+    tasks[i].period = IN_PERIOD;
+    tasks[i].state = wait;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &tick_in;
+    i++;
+    TimerSet(GCD_PERIOD);
+    TimerOn();
+    while(1){
+    }
+
+    return 0;
+}
+
+inline void m_off(void){
+  PORTC = 0b0101;
+}
+
+inline void m_right(void){
+  PORTC = 0b0101;
+  PORTC = 0b1100;
+}
+
+inline void m_left(void){
+  PORTC = 0b0101;
+  PORTC = 0b0011;
+}
+
 int tick_in(int state) {
   short pin3, pin4;
   switch(state){
@@ -91,18 +131,6 @@ int tick_in(int state) {
   return state;
 }
 
-inline void m_off(void){
-  PORTB = 0b0101;
-}
-
-inline void m_right(void){
-  PORTB = 0b1100;
-}
-
-inline void m_left(void){
-  PORTB = 0b0011;
-}
-
 int tick_m(int state) {
   switch(motor_state){
     case left:
@@ -117,37 +145,4 @@ int tick_m(int state) {
   }
 
   return state;
-}
-
-
-int main(void) {
-    //TODO: initialize all your inputs and ouputs
-
-/*
-To initialize a pin as an output, you must set its DDR value as ‘1’ and then set its PORT value as a ‘0’. 
-To initialize a pin as an input, you do the opposite: you must set its DDR value as ‘0’ and its PORT value as a ‘1’. 
-*/
-
-    motor_state = off;
-    unsigned char i = 0;
-    serial_init(9600);
-    DDRD = 0b0000;
-    DDRB = 0b1111;
-
-    tasks[i].period = M_PERIOD;
-    tasks[i].state = low;
-    tasks[i].elapsedTime = tasks[i].period;
-    tasks[i].TickFct = &tick_m;
-    i++;
-    tasks[i].period = IN_PERIOD;
-    tasks[i].state = wait;
-    tasks[i].elapsedTime = tasks[i].period;
-    tasks[i].TickFct = &tick_in;
-    i++;
-    TimerSet(GCD_PERIOD);
-    TimerOn();
-    while(1){
-    }
-
-    return 0;
 }
