@@ -1,3 +1,4 @@
+//Note this is now version 3, I did not properly commit the changes proeprly at the time. As of this push it is one big push.
 #include <Wire.h>
 #include "Adafruit_VL53L0X.h"
 #include "Arduino.h"
@@ -17,6 +18,25 @@ float angle = 0; //beginning of the angle
 // 360/(200 * 2) * 2 = 1.8 degress/loop
 float stepAngle = 1.8;
 int stepDelay = 1000;
+volatile int lastPinState = 0;
+volatile bool beginAngle = false;
+
+//ISR
+void IRAM_ATTR ISR_hallFunction(){
+  int curState = digitalRead(interruptPin);
+  if(curState == HIGH){
+    if(lastPinState == 0){
+      lastPinState = 1;
+    }
+  }
+  else if(curState == LOW){
+    if(lastPinState == 1){
+      lastPinState = 0;
+      beginAngle = true;
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);  // Higher baud rate recommended for ESP32
   //pinMode(12,OUTPUT);
@@ -36,13 +56,20 @@ void setup() {
   pinMode(enablePin,OUTPUT);
   digitalWrite(enablePin,LOW);
   digitalWrite(dirPin,HIGH);
-
+  // setup Hall Sensor Interrupts
+  pinMode(interruptPin,INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), ISR_hallFunction, CHANGE); //should send interrupt
 }
 
 void loop() {
   // setup some way to reset angle with hall sensor
+  if(beginAngle == true){ // When magnet is detected, we reset the angle
+    angle = 0;
+    beginAngle == false;
+  }
+  // Stepper Motor makes one step, delays then makes another step
   stepStepperMotor();
-  //get the distance
+  // get the distance
   Serial.print("Radius: ");
   int radius = lidarScan();
   Serial.println(radius);
