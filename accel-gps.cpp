@@ -1,22 +1,20 @@
-#include <Arduino.h>
+#include <Arduino.h> //for converting from .ino file to .cpp file from my knowledge, remove if not needed
 #include <Wire.h>
 #include <SoftwareSerial.h>
 #include <MPU6050.h>
 #include <TinyGPS.h>
 
 
-// GPS
+// GPS setup
 TinyGPS gps;
 SoftwareSerial gpsSerial(4, 3);
-// MPU6050
+// MPU6050 setup
 MPU6050 mpu;
 
 
 void setup()
 {
   Serial.begin(115200);
-  // ss.begin(9600); //gps default
-  // ss.begin(4800); //sample default
   
   // start GPS
   gpsSerial.begin(9600); // gps default
@@ -27,6 +25,12 @@ void setup()
   mpu.initialize();
   if (mpu.testConnection()) {
     Serial.println("MPU6050 connection successful");
+
+    // calibration (leave the unit standing still until 5 seconds)
+    Serial.println("Calibrating gyroscope...");
+    mpu.CalibrateGyro(6);
+    Serial.println("Calibration complete.");
+    mpu.PrintActiveOffsets();
   } 
   else {
     Serial.println("MPU6050 connection failed");
@@ -37,7 +41,7 @@ void setup()
 
 void loop()
 {
-  // READ GPS DATA
+  // READ GPS DATA (extremely unreliable while indoors and with small movements)
   while (gpsSerial.available()) {
     char c = gpsSerial.read();
     if (gps.encode(c)) {
