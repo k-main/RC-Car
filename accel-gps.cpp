@@ -26,11 +26,16 @@ void setup()
   if (mpu.testConnection()) {
     Serial.println("MPU6050 connection successful");
 
-    // calibration (leave the unit standing still until 5 seconds)
+    // automatic calibration (leave the unit standing still until 5 seconds)
     Serial.println("Calibrating gyroscope...");
     mpu.CalibrateGyro(6);
     Serial.println("Calibration complete.");
     mpu.PrintActiveOffsets();
+
+    // // for manual calibration
+    // mpu.setXGyroOffset(offsetValueX);
+    // mpu.setYGyroOffset(offsetValueY);
+    // mpu.setZGyroOffset(offsetValueZ);
   } 
   else {
     Serial.println("MPU6050 connection failed");
