@@ -9,4 +9,9 @@ typedef struct _task {
 } task;
 
 
+unsigned int map_value(unsigned int aFirst, unsigned int aSecond, unsigned int bFirst, unsigned int bSecond, unsigned int inVal)
+{
+        return bFirst + (long((inVal - aFirst))*long((bSecond-bFirst)))/(aSecond - aFirst);
+}
+
 #endif

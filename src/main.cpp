@@ -4,19 +4,23 @@
 #include <RF24.h>
 #include <nRF24L01.h>
 
-#define NUM_TASKS 2
-
+#define NUM_TASKS 3
+/* Button Pin Assignments */
 #define BTN_1 32
 #define BTN_2 33
-// #define LED_1 33
+/* NRF24L Pin Assignments */
 #define CE    4
 #define CSN   5
 #define SCK   18
 #define MOSI  23
 #define MISO  19
+/* Joystick Pin Assignments */
+#define JST_X 34
+#define JST_Y 35
 
 const unsigned int GCD_PERIOD = 50;
-const unsigned int BTN_PERIOD = 50; 
+const unsigned int BTN_PERIOD = 50;
+const unsigned int JST_PERIOD = 50; 
 const unsigned int NRF_PERIOD = 100;
 
 task tasks[NUM_TASKS];
@@ -32,12 +36,15 @@ RF24 radio(4, 5);
 void updateTasks(void);
 int btn_func(int state);
 int nrf_func(int state);
+int jst_func(int state);
 
 
 void setup() {
-  // pinMode(LED_1, OUTPUT);
   pinMode(BTN_1, INPUT);
   pinMode(BTN_2, INPUT);
+
+  pinMode(JST_X, INPUT);
+  pinMode(JST_Y, INPUT);
 
   radio.begin();
   radio.openWritingPipe(PIPE_ADDR);
@@ -47,20 +54,35 @@ void setup() {
   Serial.begin(115200);
   unsigned int i = 0;
   tasks[i].elapsedTime = 0;
-  tasks[i].period = 50;
+  tasks[i].period = BTN_PERIOD;
   tasks[i].state = wait;
   tasks[i].taskFunc = &btn_func;
   i++;
   tasks[i].elapsedTime = 0;
-  tasks[i].period = 50;
+  tasks[i].period = NRF_PERIOD;
   tasks[i].state = wait;
   tasks[i].taskFunc = &nrf_func;
   i++;
+  tasks[i].elapsedTime = 0;
+  tasks[i].period = JST_PERIOD;
+  tasks[i].state = wait;
+  tasks[i].taskFunc = &jst_func;
+  i++;
+  Serial.println("Exit setup");
 }
 
 void loop() {
   delay(GCD_PERIOD);
   updateTasks();
+}
+
+int jst_func(int state){
+  Serial.println(" ");
+  Serial.print("Joystick X: ");
+  Serial.println(map_value(0, 4096, 0, 32, analogRead(JST_X)));
+  Serial.print("Joystick Y: ");
+  Serial.println(map_value(0, 4096, 0, 32, analogRead(JST_Y)));
+  return state;
 }
 
 int nrf_func(int state){
