@@ -1,27 +1,23 @@
-#include <Arduino.h> //for converting from .ino file to .cpp file from my knowledge, remove if not needed
 #include <Wire.h>
-#include <SoftwareSerial.h>
-#include <MPU6050.h>
 #include <TinyGPS.h>
+#include <MPU6050.h>
 
-
-// GPS setup
+// GPS Setup
 TinyGPS gps;
-SoftwareSerial gpsSerial(4, 3);
-// MPU6050 setup
+HardwareSerial gpsSerial(2);
+// MPU6050 Setup
 MPU6050 mpu;
 
-
-void setup()
-{
+void setup() {
   Serial.begin(115200);
+  while (!Serial); // wait for serial monitor
   
   // start GPS
-  gpsSerial.begin(9600); // gps default
+  gpsSerial.begin(4800, SERIAL_8N1, 16, 17); // TX=16, RX=17
   Serial.println("GPS and MPU6050 Combined Code");
 
   // start MPU6050
-  Wire.begin();
+  Wire.begin(21, 22); // SDA=21, SCL=22
   mpu.initialize();
   if (mpu.testConnection()) {
     Serial.println("MPU6050 connection successful");
@@ -43,9 +39,7 @@ void setup()
   }
 }
 
-
-void loop()
-{
+void loop() {
   // READ GPS DATA (extremely unreliable while indoors and with small movements)
   while (gpsSerial.available()) {
     char c = gpsSerial.read();
@@ -62,7 +56,7 @@ void loop()
     }
   }
 
-// READ MPU6050 DATA (average of 10 readings)
+  // READ MPU6050 DATA (average of 10 readings)
   const int numReadings = 10;
   int32_t sumAx = 0, sumAy = 0, sumAz = 0;
   int32_t sumGx = 0, sumGy = 0, sumGz = 0;
