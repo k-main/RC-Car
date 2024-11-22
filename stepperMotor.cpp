@@ -1,4 +1,4 @@
-#incldue "Arduino.h"
+#include "Arduino.h"
 #define dirPin 4
 #define stepPin 3
 #define enablePin 2
