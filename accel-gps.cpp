@@ -1,6 +1,6 @@
 #include <Wire.h>
-#include <TinyGPS.h>
-#include <MPU6050.h>
+#include <TinyGPS.h> //mikalhart/TinyGPS@0.0.0-alpha+sha.db4ef9c97a
+#include <MPU6050.h> //electroniccats/MPU6050@^1.4.1
 
 // GPS Setup
 TinyGPS gps;
