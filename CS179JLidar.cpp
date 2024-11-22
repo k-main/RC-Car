@@ -7,6 +7,7 @@
 
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 #define interruptPin 15
+#define outputPinArduino 5 // this will output a high signal to let the arduino know to turn the stepper motor around
 
 //Vars to be set prior
 float angle = 0; //beginning of the angle
@@ -29,7 +30,9 @@ void IRAM_ATTR ISR_hallFunction(){ // might need to test on its own first
     if(lastPinState == 1){
       lastPinState = 0;
       beginAngle = true;
-
+      digitalWrite(outputPinArduino, HIGH);
+      delay(100); // wait for the arduino to turn the stepper motor around
+      digitalWrite(outputPinArduino, LOW); // turns the output pin off after the arduino has turned the stepper motor around
     }
   }
 }
@@ -49,6 +52,8 @@ void setup() {
   lox.startRangeContinuous();
   pinMode(interruptPin,INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(interruptPin), ISR_hallFunction, CHANGE); //should send interrupt
+  pinMode(outputPinArduino, OUTPUT);
+  digitalWrite(outputPinArduino, LOW); //initializes the output pin
 }
 
 void loop() {
