@@ -1,6 +1,8 @@
 //Note this is now version 3, I did not properly commit the changes proeprly at the time. As of this push it is one big push.
 //Version 4 update, no longer able to use stepper motor with esp32, had to switch to arduino for stepper motor itself
 //Version 5 update, no longer using the stepper motor, nor the adafruit library, as I figured out how I2C communication works
+//Version 6 update, now using the servo with automatic "crash detection"
+
 // References 
 // https://randomnerdtutorials.com/esp32-pwm-arduino-ide/
 // https://www.st.com/resource/en/datasheet/vl53l0x.pdf
@@ -12,6 +14,7 @@
 // Pins
 #define servo1 4
 #define servo2 5
+#define offWire 23
 
 // Vars needed
 #define servoMinPW 500
@@ -102,6 +105,10 @@ void setup() {
     // Initialize the second sensor with the default address
     delay(100);
     setupVL53L0X(TOF_ADDRESS);
+    
+    // Set the Wire to let the car no to stop
+    pinMode(offWire, OUTPUT);
+    digitalWrite(offWire, LOW);
 }
 
 void loop() {
@@ -117,6 +124,11 @@ void loop() {
         setServoAngle(180-i,2);
         distance1 = readDistance(TOF_ADDRESS);
         distance2 = readDistance(TOF_ADDRESS_2);
+        if((distance1 < 400) || (distance2 < 400)){
+          digitalWrite(offWire, HIGH);
+          delay(1000);
+          digitalWrite(offWire, LOW);
+        }
         Serial.print("Angle1: ");
         Serial.print(i);
         Serial.print(" || Distance1: ");
@@ -133,6 +145,11 @@ void loop() {
         setServoAngle(i, 2);
         distance1 = readDistance(TOF_ADDRESS);
         distance2 = readDistance(TOF_ADDRESS_2);
+        if((distance1 < 400) || (distance2 < 400)){
+          digitalWrite(offWire, HIGH);
+          delay(1000);
+          digitalWrite(offWire, LOW);
+        }
         Serial.print("Angle1: ");
         Serial.print(180-i);
         Serial.print(" || Distance1: ");
