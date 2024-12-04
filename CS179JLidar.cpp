@@ -32,6 +32,8 @@
 #define PWMChan1 0
 #define PWMChan2 1
 
+//Setting up servos you must first establish a PWM channel, then you must
+// configure that channel to your servo pin to allow PWM control
 void setUpServos() {
     ledcSetup(PWMChan1, PWMFreq, PWMRes);
     ledcAttachPin(servo1, PWMChan1);
@@ -40,14 +42,25 @@ void setUpServos() {
     ledcAttachPin(servo2, PWMChan2);
 }
 
+//Setting this up was not fun, but calculating the pulse width so that servo
+// does not go past 180, and finding the documentation for the minimum pulse width
+// to the maximum pulse width was difficult. Duty cycle was just plug and play. Had
+// to make arrangements for which pwm channel to use, so code is cleaner and more usable.
 void setServoAngle(int angle, int pwmType) {
     int pulseWidth = map(angle, 0, 180, servoMinPW, servoMaxPW);
     uint32_t dutyCycle = (pulseWidth * ((1 << PWMRes) - 1)) / servoPeriod;
 
-    if (pwmType == 1) ledcWrite(PWMChan1, dutyCycle);
-    if (pwmType == 2) ledcWrite(PWMChan2, dutyCycle);
+    if (pwmType == 1){
+        ledcWrite(PWMChan1, dutyCycle);
+    } 
+    if (pwmType == 2){
+        ledcWrite(PWMChan2, dutyCycle);
+    }
 }
 
+//This iteration actually functions consistently, turns out wire.h
+// has a decent amount of functionality, and I was thinking about the setting of
+// addresses incorrectly, this makes it so I can setup multiple differnet sensors if necessary
 void setupTOF(TwoWire &wire, int oldAddress, int newAddress) {
     wire.beginTransmission(oldAddress);
     wire.write(0x8A);  // Address register
@@ -56,9 +69,13 @@ void setupTOF(TwoWire &wire, int oldAddress, int newAddress) {
     delay(10);
 }
 
+//This readDistance function has not changed until now, turns out that due
+// wire being an object I can just read the distance as I normally would, just
+// passing in a different object. The distance register was taken from the adafruit
+// documentation (best documentation ever)
 int readDistance(TwoWire &wire, int address) {
     wire.beginTransmission(address);
-    wire.write(0x14 + 10);  // Read distance register
+    wire.write(0x14 + 10);  // Read distance register, some error offset
     wire.endTransmission(false);
 
     wire.requestFrom(address, 2);
@@ -66,7 +83,7 @@ int readDistance(TwoWire &wire, int address) {
         int distance = wire.read() << 8 | wire.read();
         return distance;
     }
-    return -1;  // Error reading distance
+    return -1; // In case the wire is not available or something unplugged
 }
 
 void setup() {
@@ -78,13 +95,17 @@ void setup() {
 
     // Setup I2C for the first sensor
     Wire.begin(18, 19); // SDA = 18, SCL = 19
-    setupTOF(Wire, VL53L0X_ADDRESS, VL53L0X_ADDRESS); // Initialize sensor 1
+    setupTOF(Wire, VL53L0X_ADDRESS, VL53L0X_ADDRESS); //Initialize sensor 1
 
     // Setup I2C for the second sensor
     Wire1.begin(21, 22); // SDA = 21, SCL = 22
-    setupTOF(Wire1, VL53L0X_ADDRESS, VL53L0X_ADDRESS2); // Change and initialize sensor 2
+    setupTOF(Wire1, VL53L0X_ADDRESS, VL53L0X_ADDRESS2); //Initialize sensor 2
 }
 
+//Gets angles from 0-180 outputs the angles, then gets the distance at that time
+// if the distance is too small it will not be able to initiate the automatic breaking
+// ideally if the distance is under 200 or ove 1000, it will not be printed
+//Still doing testing on the wifi stuff, documentation is quite nice
 void loop() {
     int angle1 = 180;
     int distance1 = 0;
