@@ -39,16 +39,17 @@ typedef enum m_state {left, right, off};
 m_state motor_state;
 m_state car_rot;
  
+
 void updateTasks(void);
 int tick_in(int state);
 int tick_m(int state);
 int tick_nrf(int state);
 
 inline void m_off(void){
-  digitalWrite(HB1_B0, HIGH);
-  digitalWrite(HB1_B1, HIGH);
-  digitalWrite(HB0_B0, HIGH);
-  digitalWrite(HB0_B1, HIGH);
+  digitalWrite(HB1_B0, LOW);
+  digitalWrite(HB1_B1, LOW);
+  digitalWrite(HB0_B0, LOW);
+  digitalWrite(HB0_B1, LOW);
 }
 
 inline void m_fwd(void);
@@ -64,17 +65,17 @@ void setup() {
     // DDRC = 0b1111;
     // PORTC = 0b0101;
 
+    radio.begin();
+    radio.openReadingPipe(0,PIPE_ADDR);
+    radio.setPALevel(RF24_PA_MIN);
+    radio.startListening();
+
     pinMode(HB0_B0, OUTPUT);
     pinMode(HB0_B1, OUTPUT);
     pinMode(HB1_B0, OUTPUT);
     pinMode(HB1_B1, OUTPUT);
 
     m_off();
-
-    radio.begin();
-    radio.openReadingPipe(0,PIPE_ADDR);
-    radio.setPALevel(RF24_PA_MIN);
-    radio.startListening();
 
     Serial.println("NRF24L initialized successfully.");
 
@@ -158,15 +159,15 @@ int tick_nrf(int state) {
     int jst_y = (int)RECV_BUFFER[2];
     switch(motor_ctrl){
       case 0:
-        Serial.println("Motors off.");
+        Serial.print("Motors off.");
         motor_state = off;
         break;
       case 1:
-        Serial.println("Backwards.");
+        Serial.print("Backwards.");
         motor_state = left;
         break;
       case 2:
-        Serial.println("Forward.");
+        Serial.print("Forward.");
         motor_state = right;
         break;
     }
@@ -181,7 +182,6 @@ int tick_nrf(int state) {
 
     Serial.println(" ");
 
-    Serial.println(motor_ctrl);
     Serial.print("Joystick X: ");
     Serial.println((int)RECV_BUFFER[1]);
 
