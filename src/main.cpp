@@ -26,9 +26,9 @@ char RECV_BUFFER[16] = "";
 
 //d21 d22 d17(tx2) d16(rx2)
 
-const unsigned int GCD_PERIOD = 10;
+const unsigned int GCD_PERIOD = 1;
 const unsigned int IN_PERIOD  = 50;
-const unsigned int M_PERIOD   = 10;
+const unsigned int M_PERIOD   = 1;
 const unsigned int NRF_PERIOD = 100;
 
 task tasks[NUM_TASKS];
@@ -40,6 +40,8 @@ m_state car_dir;
 m_state rotation_dir;
 m_state motor_state;
  
+double ON_X = 0, ON_Y = 0, PWM_PERIOD = 16;
+short PWM_X = 0, PWM_Y = 0;
 
 void updateTasks(void);
 int tick_in(int state);
@@ -68,8 +70,6 @@ void setup() {
     rotation_dir = off;
     unsigned char i = 0;
     Serial.begin(115200);
-    // DDRC = 0b1111;
-    // PORTC = 0b0101;
 
     radio.begin();
     radio.openReadingPipe(0,PIPE_ADDR);
@@ -180,18 +180,22 @@ int tick_nrf(int state) {
     //     break;
     // }
 
-    if (jst_x > 20) {
+    if (jst_x > 16) {
       rotation_dir = right;
-    } else if (jst_x < 10) {
+      ON_X = jst_x;
+    } else if (jst_x < 14) {
       rotation_dir = left;
+      ON_X = 31 - jst_x;
     } else {
       rotation_dir = off;
     }
 
-    if (jst_y > 20) {
+    if (jst_y > 16) {
       car_dir = right;
-    } else if (jst_y < 10) {
+      ON_Y = jst_y;
+    } else if (jst_y < 12) {
       car_dir = left;
+      ON_Y = 31 - jst_y;
     } else {
       car_dir = off;
     }
@@ -201,9 +205,15 @@ int tick_nrf(int state) {
 
     Serial.print("Joystick X: ");
     Serial.println((int)RECV_BUFFER[1]);
+    Serial.print("ON X: ");
+    Serial.println(ON_X);
 
     Serial.print("Joystick Y: ");
     Serial.println((int)RECV_BUFFER[2]);
+
+    Serial.print("ON Y: ");
+    Serial.println(ON_Y);
+
     memset(&RECV_BUFFER, 0, sizeof(RECV_BUFFER));
   }
 
@@ -254,24 +264,47 @@ int tick_in(int state) {
 int tick_m(int state) {
   switch(car_dir){
     case left:
+      PWM_Y = (PWM_Y > 31) ? 0 : PWM_Y + 1;
+      if (PWM_Y <= ON_Y) {
       m_bwd();
+      } else {
+        m_off();
+      }
     break;
     case right:
+      PWM_Y = (PWM_Y > 31) ? 0 : PWM_Y + 1;
+      if (PWM_Y <= ON_Y) {
       m_fwd();
+      } else {
+        m_off();
+      }
     break;
     case off:
+      PWM_Y = 0;
       m_off();
     break;
   }
   
   if (car_dir == off) {
-    if (rotation_dir == left) {
-      m_left();
-    } else if (rotation_dir == right) {
-      m_right();
-    } else {
+    switch(rotation_dir){
+      case left:
+      if (PWM_X <= ON_X) {
+        m_left();
+      } else {
+        m_off();
+      }
+      break; 
+      case right:
+      PWM_X = (PWM_X > 31) ? 0 : PWM_X + 1;;
+      if (PWM_X <= ON_X) {
+        m_right();
+      } else {
+        m_off();
+      }
+      break;
       m_off();
     }
+
   }
 
   return state;
