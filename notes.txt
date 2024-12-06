@@ -1,0 +1,5 @@
+CS179J Project: "RC-Car"
+
+[complexity_camera]
+ 1. Must first initalize the wifi credentials before using camera! (Follow instructions from this link -> "https://randomnerdtutorials.com/esp32-cam-video-streaming-face-recognition-arduino-ide/")
+ 2. tbd
