@@ -35,9 +35,10 @@ task tasks[NUM_TASKS];
 
 typedef enum switch_state {high, low};
 typedef enum input_state {wait, read_btn};
-typedef enum m_state {left, right, off};
+typedef enum m_state {left, right, off, forward, back};
+m_state car_dir;
+m_state rotation_dir;
 m_state motor_state;
-m_state car_rot;
  
 
 void updateTasks(void);
@@ -46,10 +47,15 @@ int tick_m(int state);
 int tick_nrf(int state);
 
 inline void m_off(void){
+  if (motor_state == off) return;
   digitalWrite(HB1_B0, LOW);
   digitalWrite(HB1_B1, LOW);
   digitalWrite(HB0_B0, LOW);
   digitalWrite(HB0_B1, LOW);
+
+
+
+  motor_state = off;
 }
 
 inline void m_fwd(void);
@@ -58,8 +64,8 @@ inline void m_left(void);
 inline void m_right(void);
 
 void setup() {
-    motor_state = off;
-    car_rot = off;
+    car_dir = off;
+    rotation_dir = off;
     unsigned char i = 0;
     Serial.begin(115200);
     // DDRC = 0b1111;
@@ -75,6 +81,7 @@ void setup() {
     pinMode(HB1_B0, OUTPUT);
     pinMode(HB1_B1, OUTPUT);
 
+    motor_state = off;
     m_off();
 
     Serial.println("NRF24L initialized successfully.");
@@ -115,40 +122,41 @@ void updateTasks(void){
 
 
 inline void m_right(void){
+  if (motor_state == right) return;
   digitalWrite(HB1_B0, LOW);
   digitalWrite(HB1_B1, HIGH);
-
   digitalWrite(HB0_B0, LOW);
   digitalWrite(HB0_B1, HIGH);
+  motor_state = right;
 }
 
 inline void m_left(void){
+  if (motor_state == left) return;
   digitalWrite(HB1_B0, HIGH);
   digitalWrite(HB1_B1, LOW);
-
   digitalWrite(HB0_B0, HIGH);
   digitalWrite(HB0_B1, LOW);
-  
+  motor_state = left;
 }
 
 inline void m_fwd(void){
-
-
+  if (motor_state == forward) return;
   digitalWrite(HB1_B0, LOW);
   digitalWrite(HB1_B1, HIGH);
 
   digitalWrite(HB0_B0, HIGH);
   digitalWrite(HB0_B1, LOW);
-
+  motor_state = forward;
 }
 
 inline void m_bwd(void){
-
+  if (motor_state == back) return;
   digitalWrite(HB1_B0, HIGH);
   digitalWrite(HB1_B1, LOW);
 
   digitalWrite(HB0_B0, LOW);
   digitalWrite(HB0_B1, HIGH);
+  motor_state = back;
 }
 
 int tick_nrf(int state) {
@@ -157,28 +165,37 @@ int tick_nrf(int state) {
     int motor_ctrl = (int)RECV_BUFFER[0];
     int jst_x = (int)RECV_BUFFER[1];
     int jst_y = (int)RECV_BUFFER[2];
-    switch(motor_ctrl){
-      case 0:
-        Serial.print("Motors off.");
-        motor_state = off;
-        break;
-      case 1:
-        Serial.print("Backwards.");
-        motor_state = left;
-        break;
-      case 2:
-        Serial.print("Forward.");
-        motor_state = right;
-        break;
+    // switch(motor_ctrl){
+    //   case 0:
+    //     Serial.print("Motors off.");
+    //     car_dir = off;
+    //     break;
+    //   case 1:
+    //     Serial.print("Backwards.");
+    //     car_dir = left;
+    //     break;
+    //   case 2:
+    //     Serial.print("Forward.");
+    //     car_dir = right;
+    //     break;
+    // }
+
+    if (jst_x > 20) {
+      rotation_dir = right;
+    } else if (jst_x < 10) {
+      rotation_dir = left;
+    } else {
+      rotation_dir = off;
     }
 
     if (jst_y > 20) {
-      car_rot = right;
+      car_dir = right;
     } else if (jst_y < 10) {
-      car_rot = left;
+      car_dir = left;
     } else {
-      car_rot = off;
+      car_dir = off;
     }
+
 
     Serial.println(" ");
 
@@ -203,7 +220,7 @@ int tick_in(int state) {
       //   break;
       // } else {
       //   state = wait;
-      //   motor_state = off;
+      //   car_dir = off;
       // }
     break;
     case read_btn:
@@ -212,21 +229,21 @@ int tick_in(int state) {
 
       // if (pin32 == 1) {
       //   if (pin33 == 1){
-      //     motor_state = off;
+      //     car_dir = off;
       //     state = wait;
       //     break;
       //   } else {
-      //     motor_state = right;
+      //     car_dir = right;
       //     state = read_btn;
       //     break;
       //   }
       // } else if (pin33 == 1) {
-      //   motor_state = left;
+      //   car_dir = left;
       //   state = read_btn;
       //   break;
       // } else {
       //   state = wait;
-      //   motor_state = off;
+      //   car_dir = off;
       // }
     break;
   }
@@ -235,7 +252,7 @@ int tick_in(int state) {
 }
 
 int tick_m(int state) {
-  switch(motor_state){
+  switch(car_dir){
     case left:
       m_bwd();
     break;
@@ -247,10 +264,10 @@ int tick_m(int state) {
     break;
   }
   
-  if (motor_state == off) {
-    if (car_rot == left) {
+  if (car_dir == off) {
+    if (rotation_dir == left) {
       m_left();
-    } else if (car_rot == right) {
+    } else if (rotation_dir == right) {
       m_right();
     } else {
       m_off();
