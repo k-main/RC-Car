@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
 // joystick buttons
 
 const int autonomous = 5;
@@ -10,12 +13,17 @@ const int shutDown = 21;
 int shutDownFlag = 0;
 int hold_shutdown = 0;
 
+//buttons to move camera left and right
+const int left = 12;
+const int right = 13;   
+int moveCamFlag = 0;
+
 
 // button to save coordinates
 const int saveCoordinates = 22;
 int i = 0;
 int saveCoordinatesFlag = 0;
-int coordinates [10][2] = {
+float coordinates [10][2] = {
   {0,0},
   {0,0},
   {0,0},
@@ -28,44 +36,58 @@ int coordinates [10][2] = {
   {0,0}
 }; 
 
+#define TFT_MISO   19
+#define TFT_SCK    18
+#define TFT_MOSI   23
+#define TFT_DC      2
+#define TFT_RESET   4
+#define TFT_CS     15
+
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCK, TFT_RESET, TFT_MISO); 
+
+// write state machines here
+enum joy_States { joy_SMStart, move_staight_forward, move_staight_backward, move_left_forward, move_left_backward, move_right_forward, move_right_backward, autonomous_mode} joy_State;
+
+
 // analog pin 32 connected to X output of JoyStick
 // analog pin 33 connected to Y output of JoyStick
 
-int readStick() { //returns 1 if the joystick was up, 2 if it is down, 0 for anything else
-  // you may have to read from A0 instead of A1 depending on how you orient the joystick
+int readStick() { 
   if (analogRead(33) < 200) {
-    //going froward
-    if(analogRead(32) < 200){
-      //turn wheels left
-      return 0;
-    }
-    else if(analogRead(32) > 3000){
-      //turn wheels right
-      return 1;
-    }
-    return 2; // forward and straight
-  }
-  else if(analogRead(33) > 3000){
+    //going forward
     if(analogRead(32) < 200){
       //turn wheels left
       return 3;
     }
     else if(analogRead(32) > 3000){
       //turn wheels right
+      return 5;
+    }
+    return 1; // forward and straight
+  }
+  else if(analogRead(33) > 3000){
+    if(analogRead(32) < 200){
+      //turn wheels left
       return 4;
     }
-    return 5; //backward and straight
+    else if(analogRead(32) > 3000){
+      //turn wheels right
+      return 6;
+    }
+    return 2; //backward and straight
   }
   else{
-    return 6;
+    return 0;
   }
   
 }
 
-unsigned int joyStick = 0;
+void writeToDisplaySetup(){
+  tft.fillRect(65,45, 200,150, ILI9341_BLACK);
+  tft.setCursor(100,120);
+}
 
-// write state machines here
-enum joy_States { joy_SMStart, move_staight_forward, move_staight_backward, move_left_forward, move_left_backward, move_right_forward, move_right_backward, autonomous_mode} joy_State;
+// unsigned int joyStick = 0;
 
 void move_Car() {
   switch (joy_State) { //Transitions
@@ -77,27 +99,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
  
       break;
@@ -109,27 +111,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
     case move_staight_backward:
       if (shutDownFlag == 1){
@@ -139,27 +121,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
     case move_left_forward:
         //move gears
@@ -171,27 +133,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
     case move_left_backward:
         //move gears opposite way
@@ -203,27 +145,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
     case move_right_forward:
         //move gears
@@ -235,27 +157,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
     case move_right_backward:
         //move gears opposite way
@@ -267,27 +169,7 @@ void move_Car() {
         joy_State = autonomous_mode;
       }
       else{
-        if (joyStick == 0){
-          joy_State = move_left_forward;
-        }
-        else if (joyStick == 1){
-          joy_State = move_right_forward;
-        }
-        else if(joyStick == 2){
-          joy_State = move_staight_forward;
-        }
-        else if (joyStick == 3){
-          joy_State = move_left_backward;
-        }
-        else if (joyStick == 4){
-          joy_State = move_right_backward;
-        }
-        else if (joyStick == 5){
-          joy_State = move_staight_backward;
-        }
-        else{
-          joy_State = joy_SMStart;
-        }
+        joy_State = static_cast<joy_States>(readStick());
       }
       case autonomous_mode:
         //car moves automatically 
@@ -307,8 +189,8 @@ void move_Car() {
   switch (joy_State){ //State Actions
     case joy_SMStart:
       // stop car
-      // Serial.println("Stopping!"); 
-      joyStick = readStick();
+      writeToDisplaySetup();
+      tft.println("Stopping!"); 
       if((digitalRead(shutDown) == HIGH)){
           if(hold_shutdown == 0 && shutDownFlag == 1){
             hold_shutdown = 1;
@@ -333,8 +215,8 @@ void move_Car() {
     case move_staight_forward:
         //move gears
         //keep Wheels Straight
-        // Serial.println("Going Straight & Forward!"); 
-        joyStick = readStick();
+        writeToDisplaySetup();
+        tft.println("Going Straight & Forward!"); 
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -347,8 +229,8 @@ void move_Car() {
     case move_staight_backward:
         //move gears opossite way
         //keep Wheels Straight
-        // Serial.println("Going Straight & Backward!"); 
-        joyStick = readStick();
+        writeToDisplaySetup();
+        tft.println("Going Straight & Backward!"); 
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -359,8 +241,8 @@ void move_Car() {
         }
         break;
     case move_left_forward:
-        // Serial.println("Going Left & Forward!"); 
-        joyStick = readStick();
+        writeToDisplaySetup();
+        tft.println("Going Left & Forward!"); 
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -373,8 +255,8 @@ void move_Car() {
         //turn Wheels left
         break;
     case move_left_backward:
-        // Serial.println("Going Left & Backward!");
-        joyStick = readStick();
+        writeToDisplaySetup();
+        tft.println("Going Left & Backward!");
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -387,8 +269,8 @@ void move_Car() {
         //turn Wheels left
         break;
     case move_right_forward:
-        // Serial.println("Going Right & Forward!"); 
-        joyStick = readStick();
+        writeToDisplaySetup();
+        tft.println("Going Right & Forward!"); 
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -401,8 +283,8 @@ void move_Car() {
         //turn Wheels right
         break;
     case move_right_backward:
-        // Serial.println("Going Right & Backward!");
-        joyStick = readStick();
+        writeToDisplaySetup();
+        tft.println("Going Right & Backward!");
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -415,7 +297,8 @@ void move_Car() {
         //turn Wheels left  
         break; 
     case autonomous_mode:
-        // Serial.println("Autonomous");
+        writeToDisplaySetup();
+        tft.println("Autonomous");
         if(digitalRead(shutDown) == HIGH){
           hold_shutdown = 1;
           shutDownFlag = 1;
@@ -434,39 +317,121 @@ void move_Car() {
          break; 
   }
 }
+// enum autonomous_States {autonomous_wait, autonomous_start} autonomous_State;
+
+enum camera_States {camera_SMStart, move_left_180, move_right_180}camera_State;
+
+
+void move_Camera() {
+  switch (camera_State) { //Transitions
+    case camera_SMStart:
+      if((digitalRead(right) == HIGH) && (digitalRead(left) == LOW) && (moveCamFlag == 0)){
+        moveCamFlag = 1;
+        camera_State = move_right_180;
+      }
+      else if((digitalRead(left) == HIGH) && (digitalRead(right) == LOW) && (moveCamFlag == 0)){
+        moveCamFlag = 1;
+        camera_State = move_left_180;
+      }
+      else{
+        camera_State = camera_SMStart;
+      }
+      break;
+    case move_left_180:
+      camera_State = camera_SMStart;
+    
+    case move_right_180:
+      camera_State = camera_SMStart;
+
+    default:
+         camera_State = camera_SMStart;
+         break; 
+  }
+  switch (camera_State){ //State Actions
+    case camera_SMStart:
+      if((digitalRead(right) == LOW) && (digitalRead(left) == LOW) && (moveCamFlag == 1)){
+        moveCamFlag = 0;
+      }
+      break;
+    case move_left_180:
+      // send signal to move camera left
+      break;
+    case move_right_180:
+      // send signal to move camera right
+      break;  
+    default:
+         break; 
+  }
+}
+
+enum coordinates_States {wait, save} coordinates_State;
+
+void save_Coordinates() {
+  switch (coordinates_State) { //Transitions
+    case wait:
+      if((digitalRead(saveCoordinates) == HIGH) && (saveCoordinatesFlag == 0)){
+        coordinates_State = save;
+      }
+      else {
+        coordinates_State = wait;
+      }
+      break;
+    case save:
+      coordinates_State = wait;
+
+    default:
+         coordinates_State = wait;
+         break; 
+  }
+  switch (coordinates_State){ //State Actions
+    case wait:
+      if((digitalRead(saveCoordinates) == LOW) && (saveCoordinatesFlag == 1)){
+        saveCoordinatesFlag = 0;
+      }
+      break;
+    case save:
+      saveCoordinatesFlag = 1;
+      coordinates[i][0] = 5; // should be numbers that we get from gps
+      coordinates[i][1] = 2;
+      if (i < 10){
+        i += 1;
+      }
+      else{
+        i = 0;
+      }
+      break;
+    default:
+         break; 
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(shutDown, INPUT);
   pinMode(saveCoordinates, INPUT);
   pinMode(autonomous, INPUT);
+  pinMode(right, INPUT);
+  pinMode(left, INPUT);
+  tft.begin();
+  tft.setRotation(1);
   Serial.begin(115200);
+  tft.fillRect(65,45, 200,150, ILI9341_BLACK);
+  tft.setCursor(160,45);
+  tft.setTextColor(tft.color565(255,255,255));
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   delay(500);
   move_Car();
-  if((digitalRead(saveCoordinates) == HIGH) && (saveCoordinatesFlag == 0)){
-    saveCoordinatesFlag = 1;
-    coordinates[i][0] = 5;
-    coordinates[i][1] = 2;
-    if (i < 10){
-      i += 1;
-    }
-    else{
-      i = 0;
-    }
-    // Serial.println("done!");
-  }
-  if((digitalRead(saveCoordinates) == LOW) && (saveCoordinatesFlag == 1)){
-    saveCoordinatesFlag = 0;
-  }
+  delay(500);
+  save_Coordinates();
+  delay(500);
+  move_Camera();
   // Serial.print("Shut Down: ");
   // Serial.println(digitalRead(shutDown));
   // Serial.print("Autonomous: ");
   // Serial.println(digitalRead(autonomous));
   // Serial.print("Save Coordinates: ");
   // Serial.println(digitalRead(saveCoordinates));
-   
 }
