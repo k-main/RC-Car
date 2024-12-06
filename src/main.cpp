@@ -28,6 +28,10 @@ task tasks[NUM_TASKS];
 typedef enum btn_state { press, wait };
 char fwd_flag = 0;
 char bwd_flag = 0;
+
+char jst_x = -1;
+char jst_y = -1;
+
 // const char* MSG_BUFFER = "Hello from ESP32.";
 char MSG_BUFFER[16];
 const byte  PIPE_ADDR[6] = "00001";
@@ -77,23 +81,31 @@ void loop() {
 }
 
 int jst_func(int state){
+  jst_x = map_value(0, 4096, 0, 32, analogRead(JST_X));
+  jst_y = map_value(0, 4096, 0, 32, analogRead(JST_Y));
+
+  //DEBUG
   Serial.println(" ");
   Serial.print("Joystick X: ");
-  Serial.println(map_value(0, 4096, 0, 32, analogRead(JST_X)));
+  Serial.println((int)jst_x);
   Serial.print("Joystick Y: ");
-  Serial.println(map_value(0, 4096, 0, 32, analogRead(JST_Y)));
+  Serial.println((int)jst_y);
+  
+  
+
   return state;
 }
 
 int nrf_func(int state){
   if (fwd_flag) {
-    MSG_BUFFER[0] = 'F';
+    MSG_BUFFER[0] = 2;
   } else if (bwd_flag) {
-    MSG_BUFFER[0] = 'B';
+    MSG_BUFFER[0] = 1;
   } else {
-    MSG_BUFFER[0] = 'N';
+    MSG_BUFFER[0] = 0;
   }
-
+  MSG_BUFFER[1] = jst_x;
+  MSG_BUFFER[2] = jst_y;
   radio.write(&MSG_BUFFER, sizeof(MSG_BUFFER));
   return state;
 }
