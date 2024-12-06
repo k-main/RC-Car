@@ -85,12 +85,27 @@ int readDistance(TwoWire &wire, int address) {
     }
     return -1; // In case the wire is not available or something unplugged
 }
+//Setts up getters/setters to make life easier for i2c devices
+void setRegister(TwoWire &wire, int address, int reg, int value) {
+    wire.beginTransmission(address);
+    wire.write(reg);
+    wire.write(value);
+    wire.endTransmission();
+}
 
+// Function to get a register value
+int getRegister(TwoWire &wire, int address, int reg) {
+    wire.beginTransmission(address);
+    wire.write(reg);
+    wire.endTransmission(false);
+    wire.requestFrom(address, 1);
+    return Wire.read();
+}
 void setup() {
     Serial.begin(115200);
 
     setUpServos();
-    setServoAngle(0, 1);
+    setServoAngle(180, 1);
     setServoAngle(180, 2);
 
     // Setup I2C for the first sensor
@@ -107,50 +122,46 @@ void setup() {
 // ideally if the distance is under 200 or ove 1000, it will not be printed
 //Still doing testing on the wifi stuff, documentation is quite nice
 void loop() {
-    int angle1 = 180;
-    int distance1 = 0;
-    int distance2 = 0;
-    for (int i = 0; i < angle1; i++) {
-        setServoAngle(i, 1);
+    setRegister(Wire,VL53L0X_ADDRESS, 0x00, 0x02);  // Start continuous ranging for the first sensor
+    setRegister(Wire1,VL53L0X_ADDRESS2, 0x00, 0x02); // Start continuous ranging for the second sensor
+    for (int i = 0; i < 180; i+=3) {
+        setServoAngle(180-i, 1);
         setServoAngle(180 - i, 2);
+        //
+        int distance1 = readDistance(Wire, VL53L0X_ADDRESS);
+        int distance2 = readDistance(Wire1, VL53L0X_ADDRESS2);
 
-        distance1 = readDistance(Wire, VL53L0X_ADDRESS);
-        distance2 = readDistance(Wire1, VL53L0X_ADDRESS2);
-        if((distance1 < 400 && distance1 > 200) || (distance2 < 400 && distance2 > 200)){
-          digitalWrite(offWire, HIGH);
-          delay(1000);
-          digitalWrite(offWire, LOW);
-        }
-        Serial.print("Angle1: ");
-        Serial.print(i);
-        Serial.print(" || Distance1: ");
-        Serial.print(distance1);
-        Serial.print(" || Angle2: ");
-        Serial.print(180-i);
-        Serial.print(" || Distance2: ");
-        Serial.println(distance2);
-        delay(10);
+        // Filter out values below 200 mm or above 1000 mm
+            Serial.print("Angle1: ");
+            Serial.print(i);
+            Serial.print(" | Distance1: ");
+            Serial.print(distance1);
+            Serial.print(" Angle2: ");
+            Serial.print(i+180);
+            Serial.print(" | Distance2: ");
+            Serial.println(distance2);
+ 
+
+        delay(100); // Reduce delay for more frequent updates
     }
-    delay(1000);
-    for (int i = 0; i < angle1; i++) {
-        setServoAngle(180 - i, 1);
-        setServoAngle(i, 2);
-        distance1 = readDistance(Wire, VL53L0X_ADDRESS);
-        distance2 = readDistance(Wire1, VL53L0X_ADDRESS2);
-        if((distance1 < 400 && distance1 > 200) || (distance2 < 400 && distance2 > 200)){
-          digitalWrite(offWire, HIGH);
-          delay(1000);
-          digitalWrite(offWire, LOW);
-        }
-        Serial.print("Angle1: ");
-        Serial.print(180-i);
-        Serial.print(" || Distance1: ");
-        Serial.print(distance1);
-        Serial.print(" || Angle2: ");
-        Serial.print(i);
-        Serial.print(" || Distance2: ");
-        Serial.println(distance2);
-        delay(10);
+    delay(10000);
+    for(int i = 179; i >= 0; i-=3){
+        setServoAngle(180-i, 1);
+        setServoAngle(180 - i, 2);
+        int distance1 = readDistance(Wire, VL53L0X_ADDRESS);
+        int distance2 = readDistance(Wire1, VL53L0X_ADDRESS2);
+        // Filter out values below 200 mm or above 1000 mm
+            Serial.print("Angle1: ");
+            Serial.print(i);
+            Serial.print(" | Distance1: ");
+            Serial.print(distance1);
+            Serial.print(" Angle2: ");
+            Serial.print(i+180);
+            Serial.print(" | Distance2: ");
+            Serial.println(distance2);
+ 
+
+        delay(100); // Reduce delay for more frequent updates
     }
     delay(10000);
 }
