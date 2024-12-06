@@ -3,6 +3,7 @@
 //Version 5 update, no longer using the stepper motor, nor the adafruit library, as I figured out how I2C communication works
 //Version 6 update, now using the servo with automatic "crash detection"
 //Version 7 update, I2C communication is now properly setup, error bounds are temporarily setup and next will be the drawing
+//Version 8 update, I2C communication had to be updated, and added error bounds, and new esp32 unfortunately
 
 // References 
 // https://randomnerdtutorials.com/esp32-pwm-arduino-ide/
@@ -115,6 +116,10 @@ void setup() {
     // Setup I2C for the second sensor
     Wire1.begin(21, 22); // SDA = 21, SCL = 22
     setupTOF(Wire1, VL53L0X_ADDRESS, VL53L0X_ADDRESS2); //Initialize sensor 2
+
+    // For crash detection setting the sensor value to low
+    pinMode(offWire, OUTPUT);
+    digitalWrite(offWire, LOW);
 }
 
 //Gets angles from 0-180 outputs the angles, then gets the distance at that time
@@ -140,7 +145,11 @@ void loop() {
             Serial.print(i+180);
             Serial.print(" | Distance2: ");
             Serial.println(distance2);
- 
+        if((distance1 < 400 && distance1 > 200) || (distance2 < 400 && distance2 > 200)){
+            digitalWrite(offWire, HIGH);
+            delay(1000);
+            digitalWrite(offWire, LOW);
+        }
 
         delay(100); // Reduce delay for more frequent updates
     }
@@ -159,8 +168,11 @@ void loop() {
             Serial.print(i+180);
             Serial.print(" | Distance2: ");
             Serial.println(distance2);
- 
-
+        if((distance1 < 400 && distance1 > 200) || (distance2 < 400 && distance2 > 200)){
+            digitalWrite(offWire, HIGH);
+            delay(1000);
+            digitalWrite(offWire, LOW);
+        }
         delay(100); // Reduce delay for more frequent updates
     }
     delay(10000);
