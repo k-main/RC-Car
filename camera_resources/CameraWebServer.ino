@@ -36,8 +36,8 @@
 // ===========================
 // Enter your WiFi credentials
 // ===========================
-const char *ssid = "TP-Link_4AD6";
-const char *password = "lok1111111 (0-0)";
+const char *ssid = "RC-CAM";
+const char *password = "password5";
 
 void startCameraServer();
 void setupLedFlash(int pin);
@@ -133,16 +133,7 @@ void setup() {
   setupLedFlash(LED_GPIO_NUM);
 #endif
 
-  WiFi.begin(ssid, password);
-  WiFi.setSleep(false);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
-
+  WiFi.softAP(ssid, password);
   startCameraServer();
 
   Serial.print("Camera Ready! Use 'http://");
