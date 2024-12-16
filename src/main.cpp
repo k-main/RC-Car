@@ -19,13 +19,16 @@
 #define JST_Y 35
 
 const unsigned int GCD_PERIOD = 50;
-const unsigned int BTN_PERIOD = 50;
+const unsigned int BTN_PERIOD = 500;
 const unsigned int JST_PERIOD = 50; 
-const unsigned int NRF_PERIOD = 100;
+const unsigned int NRF_PERIOD = 20;
 
 task tasks[NUM_TASKS];
 
 typedef enum btn_state { press, wait };
+typedef enum path_ctrl {manual, path_record, path_retrace};
+path_ctrl ctrl_state;
+bool path_ready = false;
 char fwd_flag = 0;
 char bwd_flag = 0;
 
@@ -81,15 +84,15 @@ void loop() {
 }
 
 int jst_func(int state){
-  jst_x = map_value(0, 4096, 0, 32, analogRead(JST_X));
+  jst_x = map_value(0, 4096, 0, 32, analogRead(JST_X));  // Do not change this from 32, destroys the entire car.
   jst_y = map_value(0, 4096, 0, 32, analogRead(JST_Y));
 
   //DEBUG
-  Serial.println(" ");
-  Serial.print("Joystick X: ");
-  Serial.println((int)jst_x);
-  Serial.print("Joystick Y: ");
-  Serial.println((int)jst_y);
+  // Serial.println(" ");
+  // Serial.print("Joystick X: ");
+  // Serial.println((int)jst_x);
+  // Serial.print("Joystick Y: ");
+  // Serial.println((int)jst_y);
   
   
 
@@ -130,11 +133,33 @@ int btn_func(int state){
         state = press;
         if (digitalRead(BTN_1)) {
           Serial.println("Right button.");
+          switch(ctrl_state){
+            case path_record:
+            // do nothing
+            break;
+            case path_retrace:
+            ctrl_state = manual;
+            break;
+            case manual:
+            ctrl_state = path_retrace;
+            break;
+          }
           bwd_flag = 0;
           fwd_flag = 1;
         }
         if (digitalRead(BTN_2)) {
           Serial.println("Left button.");
+          switch(ctrl_state) {
+            case manual:
+            ctrl_state = path_record;
+            break;
+            case path_record:
+            ctrl_state = manual;
+            path_ready = 1;
+            break;
+            default:
+            break;
+          }
           fwd_flag = 0;
           bwd_flag = 1;
         }
