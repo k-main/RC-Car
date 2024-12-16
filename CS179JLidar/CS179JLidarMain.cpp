@@ -106,7 +106,7 @@ void setup() {
     Serial.begin(115200);
 
     setUpServos();
-    setServoAngle(180, 1);
+    setServoAngle(0, 1);
     setServoAngle(180, 2);
 
     // Setup I2C for the first sensor
@@ -129,52 +129,63 @@ void setup() {
 void loop() {
     setRegister(Wire,VL53L0X_ADDRESS, 0x00, 0x02);  // Start continuous ranging for the first sensor
     setRegister(Wire1,VL53L0X_ADDRESS2, 0x00, 0x02); // Start continuous ranging for the second sensor
-    for (int i = 0; i < 180; i+=3) {
-        setServoAngle(180-i, 1);
+    for (int i = 0; i < 180; i++) {
+        setServoAngle(i, 1);
         setServoAngle(180 - i, 2);
         //
         int distance1 = readDistance(Wire, VL53L0X_ADDRESS);
         int distance2 = readDistance(Wire1, VL53L0X_ADDRESS2);
 
         // Filter out values below 200 mm or above 1000 mm
+        
             Serial.print("Angle1: ");
-            Serial.print(i);
+            Serial.print(180 - i);
             Serial.print(" | Distance1: ");
             Serial.print(distance1);
-            Serial.print(" Angle2: ");
-            Serial.print(i+180);
+            Serial.print(" | Angle2: ");
+            Serial.print(i + 180);
             Serial.print(" | Distance2: ");
             Serial.println(distance2);
-        if((distance1 < 400 && distance1 > 200) || (distance2 < 400 && distance2 > 200)){
+        
+
+        if((distance1 < 250 && distance1 > 150) || (distance2 < 250 && distance2 > 150)){
             digitalWrite(offWire, HIGH);
             delay(1000);
             digitalWrite(offWire, LOW);
+            delay(2000);
         }
 
-        delay(100); // Reduce delay for more frequent updates
+        delay(10); // Reduce delay for more frequent updates
     }
-    delay(10000);
-    for(int i = 179; i >= 0; i-=3){
-        setServoAngle(180-i, 1);
+
+    delay(500);
+    Serial.println("SCAN_COMPLETE");
+    for(int i = 179; i >= 0; i--){
+        setServoAngle(i, 1);
         setServoAngle(180 - i, 2);
         int distance1 = readDistance(Wire, VL53L0X_ADDRESS);
         int distance2 = readDistance(Wire1, VL53L0X_ADDRESS2);
         // Filter out values below 200 mm or above 1000 mm
+            
             Serial.print("Angle1: ");
-            Serial.print(i);
+            Serial.print(180 - i);
             Serial.print(" | Distance1: ");
             Serial.print(distance1);
-            Serial.print(" Angle2: ");
-            Serial.print(i+180);
+            Serial.print(" | Angle2: ");
+            Serial.print(i + 180);
             Serial.print(" | Distance2: ");
             Serial.println(distance2);
-        if((distance1 < 400 && distance1 > 200) || (distance2 < 400 && distance2 > 200)){
+            
+
+        if((distance1 < 250 && distance1 > 150) || (distance2 < 250 && distance2 > 150)){
             digitalWrite(offWire, HIGH);
             delay(1000);
             digitalWrite(offWire, LOW);
+            delay(2000);
         }
-        delay(100); // Reduce delay for more frequent updates
+        delay(10); // Reduce delay for more frequent updates   
     }
-    delay(10000);
+    delay(500);
+    Serial.println("SCAN_COMPLETE");
 }
 // for any values that are below 200mm or above 1000 mm delete them

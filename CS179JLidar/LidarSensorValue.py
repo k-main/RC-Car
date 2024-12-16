@@ -1,68 +1,89 @@
-# Version 1 of python code is done???
-# Version 2 will get actual data from the ESP32 instead of random values
-# Version 3 will incorporate the movement of x and y coordinates into it ... hopefully
-import pygame
-import math
-import random
+#Version final: Real time data values plotted, but not wirelessly
+#Esp32 number 2 has not been cooperating, and might have died
 
-# star pygame up
-pygame.init()
+#https://discuss.python.org/t/how-to-send-and-receive-serial-in-python/10394
+#https://matplotlib.org/stable/users/explain/animations/animations.html
+##https://www.w3schools.com/python/ref_string_split.asp
+#https://www.geeksforgeeks.org/dynamically-updating-plot-in-matplotlib/
 
-# Screen dimensions and settings
-WIDTH, HEIGHT = 1000, 1000
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Whatever the Lidar Sees now you see")
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import numpy as np
 
-# Colors (may add more to make it cooler)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-BLUE = (0, 0, 255)
-RED = (255, 0, 0)
+SERIAL_PORT = 'COM12'
+BAUD_RATE = 115200
 
-#Replace this when u actually get the data and not just random data
-def genLidarData():
-    angles = [i * 1.8 for i in range(200)]  # 2This gives us angles between 0 and 360 degrees in order and provides 1.8 degree increments
-    distances = [random.uniform(450, 600) for _ in angles]  # Random distances in terms of pixel distance between 250 and 500 degrees of the def CAR
-    return angles, distances #returns both values for ease of use of one generation function
+# Initialize serial connection
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+angles1, distances1 = np.array([]), np.array([])
+angles2, distances2 = np.array([]), np.array([])
+MAX_POINTS = 360
 
-def main():
-    # setups the bool fro running and clock in order to update the screen
-    running = True
-    clock = pygame.time.Clock()
+def process_line(line):
+    global angles1, distances1, angles2, distances2
+    try:
+        # Check for SCAN_COMPLETE to reset data
+        if "SCAN_COMPLETE" in line:
+            angles1, distances1 = np.array([]), np.array([])
+            angles2, distances2 = np.array([]), np.array([])
+        elif "Angle1" in line and "Distance1" in line:
+            parts = line.split("|")
+            if len(parts) == 4:  # Only 4 parts/values
+                angle1_part = parts[0].split(":")
+                distance1_part = parts[1].split(":")
+                angle2_part = parts[2].split(":")
+                distance2_part = parts[3].split(":")
+                if len(angle1_part) > 1 and len(distance1_part) > 1 and len(angle2_part) > 1 and len(distance2_part) > 1:
+                    angle1 = int(angle1_part[1].strip())
+                    distance1 = int(distance1_part[1].strip())
+                    angle2 = int(angle2_part[1].strip())
+                    distance2 = int(distance2_part[1].strip())
 
-    while running: #basic begins of pygame initialization
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-
-        screen.fill(WHITE) # make entire background white
-
-        # Draw def not irobot roomba robot at the center of the screen
-        origin_x, origin_y = WIDTH // 2, HEIGHT // 2
-        pygame.draw.circle(screen, RED, (origin_x, origin_y), 5)
-
-        # Generate defintely real lidar data
-        angles, distances = genLidarData()
-
-        for angle, distance in zip(angles, distances): # This will plot the dots/data points for a stable car https://www.geeksforgeeks.org/zip-in-python/
-            # Convert polar coordinates to Cartesian coordinates we need a radius of the area
-            if distance <= 500: # just to be certain that their is something there
-                angle_rad = math.radians(angle)
-                x = origin_x + distance * math.cos(angle_rad)
-                y = origin_y - distance * math.sin(angle_rad)  # Pygames y values are inverted and I HATE IT!!
-
-                
-                pygame.draw.circle(screen, BLUE, (int(x), int(y)), 3) # Draw the point distance/angle
-
-        #HOW DO I UPDATE THE DISPLAY :( https://stackoverflow.com/questions/29314987/difference-between-pygame-display-update-and-pygame-display-flip Love this person
-        pygame.display.flip()
-
-        # Cap the frame rate
-        clock.tick(30)  # 30 FPS
-
-    pygame.quit()
+                    # Filter out distances kind of, 1 sensor went bad
+                    if 20 <= distance1 <= 2000:
+                        angles1 = np.append(angles1, angle1)[-MAX_POINTS:]
+                        distances1 = np.append(distances1, distance1)[-MAX_POINTS:]
+                    if 20 <= distance2 <= 2000:
+                        angles2 = np.append(angles2, angle2)[-MAX_POINTS:]
+                        distances2 = np.append(distances2, distance2)[-MAX_POINTS:]
+                else:
+                    print(f"Invalid format : {line}")
+            else:
+                print(f"TOO MANY PARTS: {line}")
+    except ValueError as e:
+        print(f"ValueError: {e} for line: {line}")
 
 
-#if __name__ == "__main__": # This is not necessary but included it, becuase I did a similar thing in highscolol 
-main()
+def update_plot(frame):
+    global angles1, distances1, angles2, distances2
+
+    if ser.in_waiting > 0:
+        raw_data = ser.read_all().decode('utf-8').splitlines()
+        for line in raw_data:
+            process_line(line.strip())
+
+    ax.clear()
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+    ax.set_rmax(1000)
+    ax.set_rmin(200)
+
+    if angles1.size > 0 and distances1.size > 0:
+        ax.scatter(np.radians(angles1), distances1, c='blue', label='Sensor 1', s=10)
+    if angles2.size > 0 and distances2.size > 0:
+        ax.scatter(np.radians(angles2), distances2, c='red', label='Sensor 2', s=10)
+
+    ax.set_title("Object Detection", va='bottom')
+    ax.legend(loc='upper right')
+
+fig = plt.figure(figsize=(8, 8))
+ax = plt.subplot(111, polar=True)
+ani = FuncAnimation(fig, update_plot, interval=300)  # Update every 300 ms
+
+try:
+    plt.show()
+except KeyboardInterrupt:
+    print("Exiting...")
+finally:
+    ser.close()
