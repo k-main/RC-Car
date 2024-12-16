@@ -17,15 +17,16 @@
 /* Joystick Pin Assignments */
 #define JST_X 34
 #define JST_Y 35
+#define MAX_CTRL_SEGMENTS 128
 
 const unsigned int GCD_PERIOD = 50;
-const unsigned int BTN_PERIOD = 500;
+const unsigned int BTN_PERIOD = 50;
 const unsigned int JST_PERIOD = 50; 
 const unsigned int NRF_PERIOD = 20;
 
 task tasks[NUM_TASKS];
 
-typedef enum btn_state { press, wait };
+typedef enum btn_state { press, wait, hold };
 typedef enum path_ctrl {manual, path_record, path_retrace};
 path_ctrl ctrl_state;
 bool path_ready = false;
@@ -44,6 +45,14 @@ void updateTasks(void);
 int btn_func(int state);
 int nrf_func(int state);
 int jst_func(int state);
+
+typedef struct {
+  unsigned short x;
+  unsigned short y;
+} ctrl_segment;
+
+ctrl_segment path[MAX_CTRL_SEGMENTS];
+int segment_ptr = 0, segment_bookmark = 0, ptr_cnt_dir = -1;
 
 
 void setup() {
@@ -94,21 +103,37 @@ int jst_func(int state){
   // Serial.print("Joystick Y: ");
   // Serial.println((int)jst_y);
   
-  
-
+  if (ctrl_state == path_record){
+    if (segment_ptr < MAX_CTRL_SEGMENTS) {
+      ctrl_segment segment = (ctrl_segment){(int)jst_x, (int)jst_y};
+      path[segment_ptr] = segment;
+      segment_ptr++;
+    } else { // max segments reached
+      Serial.println("Exiting path record. Maximum CTRL Segments reached.");
+      ctrl_state = manual;
+      segment_bookmark = segment_ptr;
+      path_ready = 1;
+    }
+  }
   return state;
 }
 
 int nrf_func(int state){
-  if (fwd_flag) {
-    MSG_BUFFER[0] = 2;
-  } else if (bwd_flag) {
-    MSG_BUFFER[0] = 1;
+
+  MSG_BUFFER[0] = 0;
+  if (ctrl_state == path_retrace && path_ready == 1 && segment_ptr > 0) {
+    MSG_BUFFER[1] = path[segment_ptr].x;
+    MSG_BUFFER[2] = path[segment_ptr].y;
+    segment_ptr--;
+    if (segment_ptr == 0) {
+      Serial.println("Exiting path retrace...");
+      ctrl_state = manual;
+    }
   } else {
-    MSG_BUFFER[0] = 0;
+    MSG_BUFFER[1] = jst_x;
+    MSG_BUFFER[2] = jst_y;
   }
-  MSG_BUFFER[1] = jst_x;
-  MSG_BUFFER[2] = jst_y;
+
   radio.write(&MSG_BUFFER, sizeof(MSG_BUFFER));
   return state;
 }
@@ -138,34 +163,53 @@ int btn_func(int state){
             // do nothing
             break;
             case path_retrace:
+            Serial.println("Exiting path record. Entering manual mode. Path ready.\n");
+            Serial.print("Segment pointer is at " );
+            Serial.println(segment_ptr);
             ctrl_state = manual;
+            path_ready = 1;
             break;
             case manual:
-            ctrl_state = path_retrace;
+            Serial.println("Entering path retrace\n");
+            if (path_ready == 1) ctrl_state = path_retrace;
             break;
           }
-          bwd_flag = 0;
-          fwd_flag = 1;
+          // bwd_flag = 0;
+          // fwd_flag = 1;
+          state = hold;
         }
         if (digitalRead(BTN_2)) {
           Serial.println("Left button.");
           switch(ctrl_state) {
             case manual:
+            Serial.println("Entering path record\n");
             ctrl_state = path_record;
             break;
             case path_record:
+            Serial.println("Exiting path record.\n");
+            Serial.println("Path is ready.\n");
             ctrl_state = manual;
             path_ready = 1;
+            segment_ptr = 0;
             break;
             default:
             break;
           }
-          fwd_flag = 0;
-          bwd_flag = 1;
+          // fwd_flag = 0;
+          // bwd_flag = 1;
+          state = hold;
         }
       }
 
     break;
+    case hold:
+      if (digitalRead(BTN_1) > 0 || digitalRead(BTN_2) > 0) {
+        state = hold;
+      } else {
+        state = wait;
+      }
+    break;
+
   }
   return state;
 }
